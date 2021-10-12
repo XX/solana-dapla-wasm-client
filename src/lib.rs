@@ -5,7 +5,6 @@ use std::{
         atomic::{AtomicU64, Ordering},
         RwLock,
     },
-    thread,
     time::{Duration, Instant},
 };
 
@@ -19,6 +18,8 @@ use solana_client_api::{
     rpc_response::RpcSimulateTransactionResult,
     rpc_sender::{RpcSender, RpcTransportStats},
 };
+
+pub mod wasm_rpc_client;
 
 pub struct HttpSender {
     url: String,
@@ -69,7 +70,12 @@ impl RpcSender for HttpSender {
 
                     too_many_requests_retries -= 1;
 
-                    thread::sleep(duration);
+                    #[cfg(feature = "dapla_sleep")]
+                    dapla_wasm::sleep::invoke(duration.as_millis() as u64);
+
+                    #[cfg(not(feature = "dapla_sleep"))]
+                    std::thread::sleep(duration);
+
                     stats_updater.add_rate_limited_time(duration);
                     continue;
                 }
