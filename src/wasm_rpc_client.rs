@@ -43,10 +43,10 @@ impl WasmRpcClient {
                             // Retry twice a second
                             let delay_millis = 500;
 
-                            #[cfg(feature = "dapla_sleep")]
-                            dapla_wasm::sleep::invoke(delay_millis);
+                            #[cfg(feature = "laplace_sleep")]
+                            laplace_wasm::sleep::invoke(delay_millis);
 
-                            #[cfg(not(feature = "dapla_sleep"))]
+                            #[cfg(not(feature = "laplace_sleep"))]
                             std::thread::sleep(std::time::Duration::from_millis(delay_millis));
 
                             continue;

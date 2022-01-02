@@ -8,7 +8,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use dapla_wasm::http;
+use laplace_wasm::http;
 use serde::Deserialize;
 use serde_json::Value;
 use solana_client_api::{
@@ -51,14 +51,15 @@ impl RpcSender for HttpSender {
                 .uri(&self.url)
                 .header(http::types::header::CONTENT_TYPE, "application/json")
                 .body(request_json.clone().into_bytes())
-                .map_err(|err| ClientError::new_with_request(ClientErrorKind::Custom(format!("{:?}", err)), request))?;
+                .map_err(|err| ClientError::new_with_request(ClientErrorKind::Custom(format!("{:?}", err)), request))?
+                .into();
             let http_response = http::invoke(http_request)
                 .map_err(|err| ClientError::new_with_request(ClientErrorKind::Custom(format!("{:?}", err)), request))?;
 
-            if !http_response.status().is_success() {
-                if http_response.status() == http::StatusCode::TOO_MANY_REQUESTS && too_many_requests_retries > 0 {
+            if !http_response.status.is_success() {
+                if http_response.status == http::StatusCode::TOO_MANY_REQUESTS && too_many_requests_retries > 0 {
                     let mut duration = Duration::from_millis(500);
-                    if let Some(retry_after) = http_response.headers().get(http::types::header::RETRY_AFTER) {
+                    if let Some(retry_after) = http_response.headers.get(http::types::header::RETRY_AFTER) {
                         if let Ok(retry_after) = retry_after.to_str() {
                             if let Ok(retry_after) = retry_after.parse::<u64>() {
                                 if retry_after < 120 {
@@ -70,22 +71,22 @@ impl RpcSender for HttpSender {
 
                     too_many_requests_retries -= 1;
 
-                    #[cfg(feature = "dapla_sleep")]
-                    dapla_wasm::sleep::invoke(duration.as_millis() as u64);
+                    #[cfg(feature = "laplace_sleep")]
+                    laplace_wasm::sleep::invoke(duration.as_millis() as u64);
 
-                    #[cfg(not(feature = "dapla_sleep"))]
+                    #[cfg(not(feature = "laplace_sleep"))]
                     std::thread::sleep(duration);
 
                     stats_updater.add_rate_limited_time(duration);
                     continue;
                 }
                 return Err(ClientError::new_with_request(
-                    ClientErrorKind::RpcError(RpcError::ForUser(format!("{}", http_response.status()))),
+                    ClientErrorKind::RpcError(RpcError::ForUser(format!("{}", http_response.status))),
                     request,
                 ));
             }
 
-            let mut json: Value = serde_json::from_slice(&http_response.body())?;
+            let mut json: Value = serde_json::from_slice(&http_response.body)?;
             if json["error"].is_object() {
                 return match serde_json::from_value::<RpcErrorObject>(json["error"].clone()) {
                     Ok(rpc_error_object) => {
